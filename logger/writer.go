@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -19,6 +20,7 @@ type levelFiles struct {
 	json    bool
 	writers map[zerolog.Level]*rotateWriter
 	shared  *rotateWriter
+	closed  atomic.Bool // 关闭后的写入直接丢弃，不会重新打开文件
 }
 
 func newLevelFiles(cfg Config, min zerolog.Level) (*levelFiles, error) {
@@ -46,6 +48,9 @@ func (f *levelFiles) Write(p []byte) (int, error) { return f.WriteLevel(zerolog.
 
 // WriteLevel 按级别写入对应的文件；文本格式时转为无颜色的控制台格式
 func (f *levelFiles) WriteLevel(l zerolog.Level, p []byte) (int, error) {
+	if f.closed.Load() {
+		return len(p), nil
+	}
 	var w io.Writer
 	if f.shared != nil {
 		w = f.shared
@@ -68,6 +73,7 @@ func (f *levelFiles) WriteLevel(l zerolog.Level, p []byte) (int, error) {
 
 // Close 关闭所有文件
 func (f *levelFiles) Close() error {
+	f.closed.Store(true)
 	var errs []error
 	if f.shared != nil {
 		errs = append(errs, f.shared.Close())

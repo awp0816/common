@@ -103,8 +103,45 @@ func TestRequestID(t *testing.T) {
 		t.Fatal("RequestID")
 	}
 	gctx := context.WithValue(context.Background(), FieldRequestID, "from-gin") //nolint:staticcheck // 模拟 gin.Context 的字符串键
-	if RequestID(gctx) != "from-gin" || len(NewRequestID()) != 32 {
-		t.Fatal("字符串键 request_id / NewRequestID")
+	if RequestID(gctx) != "from-gin" {
+		t.Fatal("字符串键 request_id")
+	}
+}
+
+func TestNewRequestID(t *testing.T) {
+	seen := map[string]bool{}
+	for range 1000 {
+		id := NewRequestID()
+		// 8-4-4-4-12，第 13 位为版本 4，第 17 位为变体 8/9/a/b
+		if !isUUID(id) || id != strings.ToLower(id) || id[14] != '4' || !strings.ContainsRune("89ab", rune(id[19])) || seen[id] {
+			t.Fatalf("不是合法的 UUID v4 或重复：%s", id)
+		}
+		seen[id] = true
+	}
+	for in, keep := range map[string]bool{
+		"6F9619FF-8B86-D011-B42D-00C04FC964FF": true, "6f9619ff-8b86-d011-b42d-00c04fc964ff": true,
+		"": false, "abc": false, "6f9619ff8b86d011b42d00c04fc964ff": false, "6f9619ff-8b86-d011-b42d-00c04fc964fg": false,
+	} {
+		got := RequestIDFrom(in)
+		if keep && got != strings.ToLower(in) || !keep && (got == in || !isUUID(got)) {
+			t.Fatalf("RequestIDFrom(%q) = %q", in, got)
+		}
+	}
+}
+
+func TestWriteAfterClose(t *testing.T) {
+	dir := t.TempDir()
+	if err := Init(Config{Path: dir}); err != nil {
+		t.Fatal(err)
+	}
+	Info(context.Background()).Msg("before close")
+	_ = Close()
+	if err := os.Remove(filepath.Join(dir, "app.log")); err != nil {
+		t.Fatalf("关闭后文件应已释放：%v", err)
+	}
+	Info(context.Background()).Msg("after close")
+	if _, err := os.Stat(filepath.Join(dir, "app.log")); !os.IsNotExist(err) {
+		t.Fatal("关闭后的写入不应重新打开文件")
 	}
 }
 

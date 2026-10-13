@@ -192,11 +192,47 @@ func RequestID(ctx context.Context) string {
 	return id
 }
 
-// NewRequestID 生成一个随机链路ID(32 位十六进制)
+// NewRequestID 生成一个链路ID：随机 UUID(v4)，如 3368607b-2c9b-4d03-9d07-3238c5bad607
 func NewRequestID() string {
-	b := make([]byte, 16)
-	_, _ = rand.Read(b)
-	return hex.EncodeToString(b)
+	var b [16]byte
+	_, _ = rand.Read(b[:])
+	b[6] = b[6]&0x0f | 0x40 // 版本 4
+	b[8] = b[8]&0x3f | 0x80 // RFC 4122 变体
+	var s [36]byte
+	hex.Encode(s[0:8], b[0:4])
+	hex.Encode(s[9:13], b[4:6])
+	hex.Encode(s[14:18], b[6:8])
+	hex.Encode(s[19:23], b[8:10])
+	hex.Encode(s[24:], b[10:])
+	s[8], s[13], s[18], s[23] = '-', '-', '-', '-'
+	return string(s[:])
+}
+
+// RequestIDFrom 处理外部传入的链路ID(如请求头 X-Request-ID)：是合法的 UUID 时沿用(统一为小写)，否则生成新的
+func RequestIDFrom(id string) string {
+	if isUUID(id) {
+		return strings.ToLower(id)
+	}
+	return NewRequestID()
+}
+
+// isUUID 是否为 8-4-4-4-12 格式的 UUID
+func isUUID(s string) bool {
+	if len(s) != 36 {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; {
+		case i == 8 || i == 13 || i == 18 || i == 23:
+			if c != '-' {
+				return false
+			}
+		case '0' <= c && c <= '9', 'a' <= c && c <= 'f', 'A' <= c && c <= 'F':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // shortCaller 调用位置只保留 目录/文件:行号

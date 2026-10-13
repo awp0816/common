@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.1
+
+- `logger.NewRequestID` 改为生成 UUID(v4)(原为 32 位十六进制)
+- 新增 `logger.RequestIDFrom`：外部传入的链路ID是合法 UUID 时沿用(转为小写)，否则生成新的
+- 修复 `Close` 之后仍有日志写入时会重新打开日志文件(文件句柄不释放)，现在关闭后的写入直接丢弃
+
 ## v0.1.0
 
 - `logger`：基于 zerolog 的日志组件

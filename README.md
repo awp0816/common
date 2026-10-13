@@ -59,10 +59,7 @@ logger.L                                                    // 全局 zerolog.Lo
 ```go
 // gin：在最前面的中间件里设置一次，之后 handler 里直接把 c 当 ctx 传入
 r.Use(func(c *gin.Context) {
-    id := c.GetHeader("X-Request-Id")
-    if id == "" {
-        id = logger.NewRequestID()
-    }
+    id := logger.RequestIDFrom(c.GetHeader("X-Request-Id")) // 请求头是合法 UUID 时沿用，否则生成新的
     c.Set("request_id", id)                                                          // *gin.Context 作为 ctx 时使用
     c.Request = c.Request.WithContext(logger.WithRequestID(c.Request.Context(), id)) // 传给下层的 c.Request.Context() 也带上
     c.Header("X-Request-Id", id)
@@ -73,15 +70,17 @@ r.Use(func(c *gin.Context) {
 ctx := logger.WithRequestID(context.Background(), logger.NewRequestID())
 ```
 
+链路ID为 UUID(v4)：`logger.NewRequestID()` 生成，如 `3368607b-2c9b-4d03-9d07-3238c5bad607`。
+
 ### 输出样式
 
 控制台(带颜色)与文本文件：
 
 ```
-2026-10-13 17:42:40.949 DBG logdemo/main.go:14 > 查询用户 共 3 条 request_id=8f3a2c1d9e7b4a60
-2026-10-13 17:42:40.955 INF logdemo/main.go:15 > 登录成功 request_id=8f3a2c1d9e7b4a60 user=alice
-2026-10-13 17:42:40.955 WRN logdemo/main.go:16 > 密码错误 ip=1.2.3.4 request_id=8f3a2c1d9e7b4a60 times=3
-2026-10-13 17:42:40.955 ERR logdemo/main.go:22 > 下单失败 error="库存不足" order_id=1001 request_id=8f3a2c1d9e7b4a60
+2026-10-13 17:42:40.949 DBG logdemo/main.go:14 > 查询用户 共 3 条 request_id=3368607b-2c9b-4d03-9d07-3238c5bad607
+2026-10-13 17:42:40.955 INF logdemo/main.go:15 > 登录成功 request_id=3368607b-2c9b-4d03-9d07-3238c5bad607 user=alice
+2026-10-13 17:42:40.955 WRN logdemo/main.go:16 > 密码错误 ip=1.2.3.4 request_id=3368607b-2c9b-4d03-9d07-3238c5bad607 times=3
+2026-10-13 17:42:40.955 ERR logdemo/main.go:22 > 下单失败 error="库存不足" order_id=1001 request_id=3368607b-2c9b-4d03-9d07-3238c5bad607
 	main.createOrder
 		D:/project/logdemo/main.go:22
 	main.main
@@ -92,8 +91,8 @@ ctx := logger.WithRequestID(context.Background(), logger.NewRequestID())
 JSON 文件(`json: true`)：
 
 ```
-{"level":"info","request_id":"8f3a2c1d9e7b4a60","user":"alice","ts":"2026-10-13 17:42:15.269","caller":"logdemo/main.go:17","msg":"登录成功"}
-{"level":"error","request_id":"8f3a2c1d9e7b4a60","error":"库存不足","order_id":1001,"ts":"2026-10-13 17:42:15.269","stacktrace":"main.createOrder\n\tD:/project/logdemo/main.go:24\nmain.main\n\tD:/project/logdemo/main.go:19","caller":"logdemo/main.go:24","msg":"下单失败"}
+{"level":"info","request_id":"3368607b-2c9b-4d03-9d07-3238c5bad607","user":"alice","ts":"2026-10-13 17:42:15.269","caller":"logdemo/main.go:17","msg":"登录成功"}
+{"level":"error","request_id":"3368607b-2c9b-4d03-9d07-3238c5bad607","error":"库存不足","order_id":1001,"ts":"2026-10-13 17:42:15.269","stacktrace":"main.createOrder\n\tD:/project/logdemo/main.go:24\nmain.main\n\tD:/project/logdemo/main.go:19","caller":"logdemo/main.go:24","msg":"下单失败"}
 ```
 
 - 字段名：`ts`、`level`、`msg`、`caller`、`request_id`、`error`、`stacktrace`(常量 `logger.FieldXxx`)。
