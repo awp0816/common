@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func readLines(t *testing.T, path string) []string {
@@ -113,17 +115,18 @@ func TestNewRequestID(t *testing.T) {
 	for range 1000 {
 		id := NewRequestID()
 		// 8-4-4-4-12，第 13 位为版本 4，第 17 位为变体 8/9/a/b
-		if !isUUID(id) || id != strings.ToLower(id) || id[14] != '4' || !strings.ContainsRune("89ab", rune(id[19])) || seen[id] {
+		u, err := uuid.Parse(id)
+		if err != nil || u.Version() != 4 || u.String() != id || seen[id] {
 			t.Fatalf("不是合法的 UUID v4 或重复：%s", id)
 		}
 		seen[id] = true
 	}
 	for in, keep := range map[string]bool{
 		"6F9619FF-8B86-D011-B42D-00C04FC964FF": true, "6f9619ff-8b86-d011-b42d-00c04fc964ff": true,
-		"": false, "abc": false, "6f9619ff8b86d011b42d00c04fc964ff": false, "6f9619ff-8b86-d011-b42d-00c04fc964fg": false,
+		"": false, "abc": false, "6f9619ff-8b86-d011-b42d-00c04fc964fg": false,
 	} {
 		got := RequestIDFrom(in)
-		if keep && got != strings.ToLower(in) || !keep && (got == in || !isUUID(got)) {
+		if _, err := uuid.Parse(got); err != nil || keep && got != strings.ToLower(in) || !keep && got == in {
 			t.Fatalf("RequestIDFrom(%q) = %q", in, got)
 		}
 	}

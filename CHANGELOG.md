@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.1.2
+
+- 链路ID 改用 `github.com/google/uuid` 生成与解析，去掉自行实现的 UUID 代码；`RequestIDFrom` 也接受 `{...}`、`urn:uuid:`、不带连字符等 UUID 写法，统一转为小写带连字符的格式
+
 ## v0.1.1
 
 - `logger.NewRequestID` 改为生成 UUID(v4)(原为 32 位十六进制)
