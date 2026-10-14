@@ -1,6 +1,6 @@
 # Changelog
 
-## 未发布(v0.2.0)
+## v0.2.0
 
 - 新增 `database`：gorm 连接(MySQL / PostgreSQL / SQLite)，自动建库、连接池；`debug` 时打印 SQL 到控制台；`ExecScript`/`SplitSQL` 执行 SQL 脚本
 - 新增 `redis`：单机 / 哨兵 / 集群连接，健康检查(`IsConnected`)
