@@ -15,6 +15,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
 
@@ -108,7 +109,7 @@ func Init(cfg Config) error {
 	cfg = cfg.withDefaults()
 	level, err := zerolog.ParseLevel(strings.ToLower(cfg.Level))
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "logger: 日志级别 %s 不正确，可选 debug | info | warn | error", cfg.Level)
 	}
 	var out []io.Writer
 	if cfg.Console {

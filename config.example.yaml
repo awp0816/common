@@ -1,0 +1,89 @@
+# github.com/awp0816/common 各组件的配置示例
+# 每个组件的配置结构都带 json/yaml/mapstructure 标签，可直接嵌入项目的配置结构：
+#
+#   type Config struct {
+#       Logger    logger.Config    `yaml:"logger" mapstructure:"logger"`
+#       Snowflake snowflake.Config `yaml:"snowflake" mapstructure:"snowflake"`
+#       Database  database.Config  `yaml:"database" mapstructure:"database"`
+#       Redis     redis.Config     `yaml:"redis" mapstructure:"redis"`
+#       Cache     cache.Config     `yaml:"cache" mapstructure:"cache"`
+#       Amqp      amqp.Config      `yaml:"amqp" mapstructure:"amqp"`
+#       Token     token.Config     `yaml:"token" mapstructure:"token"`
+#   }
+#
+# 下面的值为常用取值；注释中的"默认"指不配置(或为 0/空)时的取值。密码类字段不会出现在 JSON 输出中。
+
+# 日志 github.com/awp0816/common/logger
+logger:
+  level: info          # 最低级别 debug | info | warn | error，默认 info
+  path: logs           # 日志目录，默认 logs
+  filename: app        # 文件名前缀，默认 app：app.log，按级别分文件时为 app.info.log、app.error.log ...
+  json: true           # 文件为 JSON 格式(日志入库需要 JSON)，否则为文本；控制台始终为带颜色的文本
+  console: true        # 输出到控制台
+  disableFile: false   # 不写文件(只输出到控制台)
+  splitLevel: true     # 按级别分文件
+  daily: true          # 按天分目录 logs/2026-01-01/
+  maxSize: 100         # 单文件上限(MB)，超过后切割，默认 100
+  maxAge: 30           # 保留天数，0 不清理；按天分目录时过期目录整体删除
+  maxBackups: 0        # 切割后保留的旧文件个数，0 不限
+  compress: false      # 压缩切割后的旧文件
+  caller: true         # 记录调用位置 目录/文件:行号
+  stacktrace: true     # error 及以上附带调用栈
+
+# 雪花ID github.com/awp0816/common/snowflake(snowflake.InitConfig(cfg.Snowflake))
+snowflake:
+  node: 1                   # 节点号 0~1023，多实例部署时每个实例不同
+  epochFile: data/snowflake # 起始时间基点文件，默认 snowflake；部署时随程序保留，不要删除
+
+# 数据库 github.com/awp0816/common/database
+database:
+  type: mysql             # mysql(默认) | postgres | sqlite
+  name: app               # 数据库名；sqlite 为数据库文件路径，如 data/app.db
+  address: 127.0.0.1:3306 # host:port(sqlite 不需要)
+  username: root
+  password: ""
+  params: ""              # 追加到连接串的参数：mysql 为 key=value&key=value，postgres 为 key=value key=value
+  autoCreate: true        # 数据库不存在时自动创建(mysql、postgres)
+  maxIdleConns: 10        # 最大空闲连接数，默认 10
+  maxOpenConns: 100       # 最大连接数，默认 100
+  maxLifetime: 60         # 连接最长存活时间(分钟)，默认 60
+  debug: true             # 把执行的 SQL 打印到控制台(超过 200ms 标为慢 SQL)，开发时开启；不写入日志文件
+
+# Redis github.com/awp0816/common/redis
+redis:
+  mode: single            # single(默认) | sentinel | cluster
+  addresses:              # 地址列表；单机只取第一个，哨兵为哨兵节点地址，集群为各节点地址
+    - 127.0.0.1:6379
+  master: ""              # 哨兵模式的主节点名称
+  username: ""            # ACL 用户名，可留空
+  password: ""
+  db: 0                   # 数据库编号(集群模式不支持)
+  poolSize: 0             # 连接池大小，0 为 CPU 核数 * 10
+  dialTimeout: 3000       # 连接超时(毫秒)，默认 3000
+  readTimeout: 2000       # 读超时(毫秒)，默认 2000
+  writeTimeout: 2000      # 写超时(毫秒)，默认 2000
+
+# 缓存 github.com/awp0816/common/cache(cache.New(cfg.Cache, r))
+cache:
+  driver: memory          # memory(默认) | file | redis
+                          #   memory：存在服务进程内存中，最快；服务重启后丢失，多实例不共享
+                          #   file  ：存在本地文件中，服务重启后仍在；多实例不共享，同一文件只能被一个进程打开
+                          #   redis ：使用上面的 redis 连接，多实例共享
+  path: data/cache.db     # driver 为 file 时的缓存文件路径，默认 data/cache.db；同机部署多个实例时各自配置不同路径
+
+# RabbitMQ github.com/awp0816/common/amqp
+amqp:
+  url: amqp://guest:guest@127.0.0.1:5672/ # amqp://用户:密码@host:port/vhost
+  heartbeat: 10           # 心跳间隔(秒)，默认 10
+  prefetch: 10            # 每个消费者未确认消息的上限，默认 10
+  confirm: true           # 发布确认：Publish 等待服务端确认后才返回
+
+# 登录令牌 github.com/awp0816/common/token
+token:
+  secret: change-me-to-a-random-string # 签名密钥(必填)，建议 32 位以上随机字符串
+  method: HS256           # HS256(默认) | HS384 | HS512
+  issuer: app             # 签发者，校验时必须一致
+  expires: 120            # 有效期(分钟)，默认 120
+  buffer: 30              # 剩余有效期小于该值(分钟)时自动续期，0 不续期
+  grace: 30               # 续期后旧 token 的宽限期(秒)，默认 30
+  keyPrefix: "token:"     # 白名单在 Redis 中的 key 前缀，默认 token:

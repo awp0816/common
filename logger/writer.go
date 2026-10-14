@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -25,7 +25,7 @@ type levelFiles struct {
 
 func newLevelFiles(cfg Config, min zerolog.Level) (*levelFiles, error) {
 	if err := os.MkdirAll(cfg.Path, 0o755); err != nil {
-		return nil, fmt.Errorf("logger: create log dir: %w", err)
+		return nil, errors.Wrapf(err, "logger: 创建日志目录 %s 失败", cfg.Path)
 	}
 	f := &levelFiles{json: cfg.JSON, writers: map[zerolog.Level]*rotateWriter{}}
 	if cfg.SplitLevel {
@@ -66,22 +66,28 @@ func (f *levelFiles) WriteLevel(l zerolog.Level, p []byte) (int, error) {
 		return w.Write(p)
 	}
 	if _, err := consoleWriter(w, true).Write(p); err != nil {
-		return 0, err
+		return 0, errors.Wrap(err, "logger: 写入文本日志失败")
 	}
 	return len(p), nil
 }
 
-// Close 关闭所有文件
+// Close 关闭所有文件，有多个失败时返回第一个错误
 func (f *levelFiles) Close() error {
 	f.closed.Store(true)
-	var errs []error
+	ws := make([]*rotateWriter, 0, len(f.writers)+1)
 	if f.shared != nil {
-		errs = append(errs, f.shared.Close())
+		ws = append(ws, f.shared)
 	}
 	for _, w := range f.writers {
-		errs = append(errs, w.Close())
+		ws = append(ws, w)
 	}
-	return errors.Join(errs...)
+	var first error
+	for _, w := range ws {
+		if err := w.Close(); err != nil && first == nil {
+			first = err
+		}
+	}
+	return first
 }
 
 // rotateWriter 单个日志文件：由 lumberjack 按大小切割；按天分目录时跨天自动切换到新目录
@@ -107,7 +113,7 @@ func (w *rotateWriter) Write(p []byte) (int, error) {
 		}
 		dir := filepath.Join(w.cfg.Path, day)
 		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return 0, err
+			return 0, errors.Wrapf(err, "logger: 创建日志目录 %s 失败", dir)
 		}
 		w.lj = &lumberjack.Logger{
 			Filename:   filepath.Join(dir, w.name),
@@ -119,7 +125,8 @@ func (w *rotateWriter) Write(p []byte) (int, error) {
 		}
 		w.day = day
 	}
-	return w.lj.Write(p)
+	n, err := w.lj.Write(p)
+	return n, errors.Wrapf(err, "logger: 写入日志文件 %s 失败", w.name)
 }
 
 func (w *rotateWriter) Close() error {
@@ -130,7 +137,7 @@ func (w *rotateWriter) Close() error {
 	}
 	err := w.lj.Close()
 	w.lj = nil
-	return err
+	return errors.Wrapf(err, "logger: 关闭日志文件 %s 失败", w.name)
 }
 
 var cleanupMu sync.Mutex
