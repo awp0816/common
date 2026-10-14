@@ -37,16 +37,17 @@ snowflake:
 
 # 数据库 github.com/awp0816/common/database
 database:
-  type: mysql             # mysql(默认) | postgres | sqlite
+  type: mysql             # 必填：mysql | postgres | sqlite
   name: app               # 数据库名；sqlite 为数据库文件路径，如 data/app.db
   address: 127.0.0.1:3306 # host:port(sqlite 不需要)
   username: root
   password: ""
   params: ""              # 追加到连接串的参数：mysql 为 key=value&key=value，postgres 为 key=value key=value
   autoCreate: true        # 数据库不存在时自动创建(mysql、postgres)
-  maxIdleConns: 10        # 最大空闲连接数，默认 10
-  maxOpenConns: 100       # 最大连接数，默认 100
-  maxLifetime: 60         # 连接最长存活时间(分钟)，默认 60
+  maxIdleConns: 10        # 最大空闲连接数，必须配置；0 表示不保留空闲连接(每次查询都新建连接)
+  maxOpenConns: 100       # 最大连接数，必须配置；0 表示不限制
+  maxLifetime: 60         # 连接最长存活时间(分钟)，必须配置；0 表示永不过期
+  stringSize: 255         # mysql 中未指定长度的字符串字段的默认长度，0 时为 255；已有数据库应与原来的值一致
   debug: true             # 把执行的 SQL 打印到控制台(超过 200ms 标为慢 SQL)，开发时开启；不写入日志文件
 
 # Redis github.com/awp0816/common/redis

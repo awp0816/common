@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.1
+
+- `database`：新增 `stringSize`，配置 mysql 中未指定长度的字符串字段的默认长度(0 时为 255)，已有数据库改用本组件时与原来的值保持一致，避免启动迁移修改列长度
+- `database`：文档更正，`type` 与连接池参数没有默认值，必须配置
+
 ## v0.2.0
 
 - 新增 `database`：gorm 连接(MySQL / PostgreSQL / SQLite)，自动建库、连接池；`debug` 时打印 SQL 到控制台；`ExecScript`/`SplitSQL` 执行 SQL 脚本

@@ -118,6 +118,8 @@ defer database.Close(db)
 n, err := database.ExecScript(db, initSQL)                       // 事务内执行 SQL 脚本(初始化数据)
 ```
 
+- 连接池 `maxIdleConns`、`maxOpenConns`、`maxLifetime` 与 `type` 没有默认值，必须配置(为 0 时交给 Go 标准库：不保留空闲连接、连接数不限、连接永不过期)。
+- mysql 未指定长度的字符串字段默认为 `varchar(255)`，可用 `stringSize` 修改；已有数据库改用本组件时应与原来的值一致，否则启动迁移时会修改这些列的长度。
 - 默认：表名单数、迁移不建外键、单条写操作不开默认事务、`TranslateError`(唯一键冲突返回 `gorm.ErrDuplicatedKey`)。
 - SQL 日志：`debug: true` 时用 gorm 自带的日志把 SQL 打印到控制台(含耗时、行数，超过 200ms 标为慢 SQL)，否则不打印；不写入日志文件。SQL 执行失败只返回错误，由业务代码按需记录。
 

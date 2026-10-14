@@ -35,7 +35,7 @@ const (
 
 // Config 数据库配置
 type Config struct {
-	// Type 数据库类型：mysql(默认) | postgres | sqlite
+	// Type 数据库类型(必填)：mysql | postgres | sqlite
 	Type string `json:"type" yaml:"type" mapstructure:"type"`
 	// Name 数据库名；sqlite 为数据库文件路径
 	Name string `json:"name" yaml:"name" mapstructure:"name"`
@@ -49,14 +49,17 @@ type Config struct {
 	Params string `json:"params" yaml:"params" mapstructure:"params"`
 	// AutoCreate 数据库不存在时自动创建(mysql、postgres)
 	AutoCreate bool `json:"autoCreate" yaml:"autoCreate" mapstructure:"autoCreate"`
-	// MaxIdleConns 最大空闲连接数，默认 10
+	// MaxIdleConns 最大空闲连接数(必须配置)，0 表示不保留空闲连接，每次查询都新建连接
 	MaxIdleConns int `json:"maxIdleConns" yaml:"maxIdleConns" mapstructure:"maxIdleConns"`
-	// MaxOpenConns 最大连接数，默认 100
+	// MaxOpenConns 最大连接数(必须配置)，0 表示不限制
 	MaxOpenConns int `json:"maxOpenConns" yaml:"maxOpenConns" mapstructure:"maxOpenConns"`
-	// MaxLifetime 连接最长存活时间(分钟)，默认 60
+	// MaxLifetime 连接最长存活时间(分钟，必须配置)，0 表示永不过期
 	MaxLifetime int `json:"maxLifetime" yaml:"maxLifetime" mapstructure:"maxLifetime"`
 	// Debug 把执行的 SQL 打印到控制台(含耗时、行数，超过 200ms 标为慢 SQL)，开发时使用；为 false 时不打印
 	Debug bool `json:"debug" yaml:"debug" mapstructure:"debug"`
+	// StringSize mysql 中未指定长度的字符串字段的默认长度(varchar(n))，0 时为 255。
+	// 已有数据库改用本组件时应与原来的值保持一致，否则启动迁移时会修改这些列的长度
+	StringSize uint `json:"stringSize" yaml:"stringSize" mapstructure:"stringSize"`
 }
 
 // Option 修改 gorm 配置(在默认配置之后执行)，如命名策略、替换 Logger
@@ -126,9 +129,13 @@ func _Dial(cfg Config) (gorm.Dialector, error) {
 		if cfg.Params != "" {
 			dsn += "&" + cfg.Params
 		}
+		size := cfg.StringSize
+		if size == 0 {
+			size = 255
+		}
 		return mysql.New(mysql.Config{
 			DSN:                      dsn,
-			DefaultStringSize:        255,
+			DefaultStringSize:        size,
 			DisableDatetimePrecision: true,
 			DontSupportRenameIndex:   true,
 			DontSupportRenameColumn:  true,
